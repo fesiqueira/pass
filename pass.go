@@ -7,57 +7,68 @@ import (
 )
 
 type passCmd struct {
-	exec.Cmd
+	cmd *exec.Cmd
+}
+
+func (c *passCmd) Run() error {
+	if c.cmd.Stderr != nil {
+		return errors.New("exec: Stderr already set")
+	}
+	var errBuf bytes.Buffer
+	c.cmd.Stderr = &errBuf
+	if err := c.cmd.Run(); err != nil {
+		return errors.New(errBuf.String())
+	}
+	return nil
 }
 
 func (c *passCmd) Output() (string, error) {
-	if c.Stdout != nil {
+	if c.cmd.Stdout != nil {
 		return "", errors.New("exec: Stdout already set")
 	}
-	if c.Stderr != nil {
+	if c.cmd.Stderr != nil {
 		return "", errors.New("exec: Stderr already set")
 	}
 	var outBuf bytes.Buffer
 	var errBuf bytes.Buffer
-	c.Stdout = &outBuf
-	c.Stderr = &errBuf
-	if err := c.Run(); err == nil {
+	c.cmd.Stdout = &outBuf
+	c.cmd.Stderr = &errBuf
+	if err := c.cmd.Run(); err == nil {
 		return outBuf.String(), nil
 	}
 	return outBuf.String(), errors.New(errBuf.String())
 }
 
 func makePassCmd() *passCmd {
-	cmd := exec.Command("pass")
-	return &passCmd{*cmd}
+	return &passCmd{exec.Command("pass")}
 }
 
-func (cmd *passCmd) WithArgs(args ...string) *passCmd {
-	cmd.Args = append(cmd.Args, args...)
-	return cmd
+func (c *passCmd) WithArgs(args ...string) *passCmd {
+	c.cmd.Args = append(c.cmd.Args, args...)
+	return c
 }
 
-func (cmd *passCmd) WithInput(input string) *passCmd {
-	cmd.Stdin = bytes.NewBuffer([]byte(input + "\n"))
-	return cmd
+func (c *passCmd) WithInput(input string) *passCmd {
+	c.cmd.Stdin = bytes.NewBuffer([]byte(input + "\n"))
+	return c
 }
 
-func Show(name string) (string, error) {
+func Get(name string) (string, error) {
 	return makePassCmd().
 		WithArgs("show", name).
 		Output()
 }
 
-func Insert(name, password string) error {
-	_, err := makePassCmd(). // guaranteed to not print anything to stdout on success
-					WithArgs("insert", "-ef", name).
-					WithInput(password).
-					Output() // TODO: create a proper method to print only errors
-	return err
+func Add(name, password string) error {
+	return makePassCmd(). // guaranteed to not print anything to stdout on success
+				WithArgs("insert", "-ef", name).
+				WithInput(password).
+				Run()
 }
 
+// Update is exactly the same function as the Insert, just renamed to make it "more pleasing to the eyes" when used
 func Update(name, password string) error {
-	return Insert(name, password)
+	return Add(name, password)
 }
 
 func Remove(name string) (string, error) {

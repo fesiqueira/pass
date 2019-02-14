@@ -10,11 +10,11 @@ import (
 func main() {
 	fmt.Println("pass Go wrapper")
 
-	if err := pass.Insert("testtt", "mypasswd"); err != nil {
+	if err := pass.Add("testtt", "mypasswd"); err != nil {
 		log.Fatal(err)
 	}
 
-	passwd, err := pass.Show("testtt")
+	passwd, err := pass.Get("testtt")
 	if err != nil {
 		log.Fatal(err)
 	}
